@@ -1,0 +1,4 @@
+onnxruntime-gpu==1.12.1
+smart_open>=4.2.0
+annoy>=1.17.3
+numpy>=1.20.3
