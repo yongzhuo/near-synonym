@@ -268,7 +268,8 @@ class TokenizerBase(object):
         second_text=None,
         maxlen=None,
         pattern='S*E*E',
-        truncate_from='right'
+        truncate_from='right',
+        return_mask=False
     ):
         """输出文本对应token id和segment id
         """
@@ -297,7 +298,6 @@ class TokenizerBase(object):
 
         first_token_ids = self.tokens_to_ids(first_tokens)
         first_segment_ids = [0] * len(first_token_ids)
-
         if second_text is not None:
             if pattern == 'S*E*E':
                 idx = int(bool(self._token_start))
@@ -306,7 +306,9 @@ class TokenizerBase(object):
             second_segment_ids = [1] * len(second_token_ids)
             first_token_ids.extend(second_token_ids)
             first_segment_ids.extend(second_segment_ids)
-
+        if return_mask:
+            first_attention_mask_ids = [1] * len(first_token_ids)
+            return first_token_ids, first_segment_ids, first_attention_mask_ids
         return first_token_ids, first_segment_ids
 
     def id_to_token(self, i):
@@ -579,6 +581,28 @@ def load_json(path, parse_int=None):
     with open(path, mode="r", encoding="utf-8") as fj:
         model_json = json.load(fj, parse_int=parse_int)
     return model_json
+
+
+def sigmoid(x):
+    """
+    sigmoid
+    Args:
+        x: np.array
+    Returns:
+        s: np.array
+    """
+    s = 1 / (1 + np.exp(-x))
+    return s
+def softmax(x):
+    """
+    softmax
+    Args:
+        x: np.array
+    Returns:
+        s: np.array
+    """
+    s = np.exp(x) / np.sum(np.exp(x), axis=1, keepdims=True)
+    return s
 
 
 if __name__ == '__main__':

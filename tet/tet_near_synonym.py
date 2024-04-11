@@ -51,8 +51,7 @@ word_antonym = [("前", "后"),
                 ]
 for w in word_antonym:
     w_ant = near_synonym.antonyms(w[0])
-    print(w[0], w_ant[0][0])
-
+    print(w[0], w[1], w_ant[0][0], w_ant)
 
 
 while True:
