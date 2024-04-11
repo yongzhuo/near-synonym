@@ -1,5 +1,5 @@
 # near-synonym
->>> near-synonym, 中文反义词/近义词(antonym/synonym)工具包.
+>>> near-synonym, 中文反义词/近义词/同义词(antonym/synonym)工具包.
 
 # 一、安装
 ## 1.1 注意事项
@@ -7,17 +7,19 @@
    标准版本的依赖包详见 requirements-all.txt
    
 ## 1.2 通过PyPI安装
+```
    pip install near-synonym
    使用镜像源, 如：
    pip install -i https://pypi.tuna.tsinghua.edu.cn/simple near-synonym
    不带依赖安装, 之后缺什么包再补充什么
    pip install -i https://pypi.tuna.tsinghua.edu.cn/simple near-synonym --no-dependencies
-   
+```
+
 ## 1.3 模型文件
  - github项目源码自带模型文件只有1w+词向量, 完整模型文件在near_synonym/near_synonym_model, 
  - pip下载的软件包里边只有5w+词向量, 放在data目录下;
  - 完整的词向量详见[huggingface](https://huggingface.co/)网站的[Macropodus/near_synonym_model](https://huggingface.co/Macropodus/near_synonym_model), 
- - 或完整的词向量详见百度网盘分享链接[https://pan.baidu.com/s/1lDSCtpr0r2hKrGrK8ZLlFQ](https://pan.baidu.com/s/1lDSCtpr0r2hKrGrK8ZLlFQ), 密码: ff0y;
+ - 或完整的词向量详见百度网盘分享链接[https://pan.baidu.com/s/1lDSCtpr0r2hKrGrK8ZLlFQ](https://pan.baidu.com/s/1lDSCtpr0r2hKrGrK8ZLlFQ), 密码: ff0y
 
 
 
@@ -36,9 +38,9 @@ print("近义词:")
 print(word_synonyms)
 """
 反义词:
-[('讨厌', 0.6954), ('不爱', 0.6714), ('偏爱', 0.6676), ('太爱', 0.6472), ('花心', 0.6421), ('在乎', 0.6395), ('好感', 0.6378), ('酷爱', 0.634)]
+[('讨厌', 0.6857), ('厌恶', 0.5406), ('憎恶', 0.485), ('不喜欢', 0.4079), ('冷漠', 0.4051)]
 近义词:
-[('最爱', 0.84), ('爱好', 0.8274), ('超爱', 0.8213), ('爱上', 0.8107), ('爱玩', 0.8039), ('狂爱', 0.798), ('大胆', 0.7852), ('喜欢上', 0.7826)]
+[('喜爱', 0.8813), ('爱好', 0.8193), ('感兴趣', 0.7399), ('赞赏', 0.6849), ('倾向', 0.6137)]
 请输入word:
 """
 ```
@@ -71,9 +73,17 @@ near-synonym, 中文反义词/近义词工具包.
 
 ## 3.2 TODO
 ```
-1. 推理加速, 训练小的NLI模型, 替换掉笨重且不太合适的roformer-sim-ft;
+1. 推理加速, 训练小的NLI模型, 替换掉笨重且不太合适的roformer-sim-ft;【20240320已完成ERNIE-SIM，但转为ONNX为340M太大, 考虑浅层网络, 转第四点4.】
 2. 使用大模型构建更多的NLI语料;
+3. 使用大模型直接生成近义词, 同义词表, 用于前置索引+训练相似度;【20240407已完成】
+4. 近义词反义词识别考虑使用经典NLP分类模型, text_cnn/text-rcnn, 基于字向量;
+5. word2vec召回不太行, 考虑直接使用大模型qwen1.5-0.5b生成;
 ```
+
+## 3.3 其他实验
+### 3.3.1
+fail, 使用情感识别, 取得不同情感下的词语(失败, 例如可爱/漂亮同为积极情感);
+fail, 使用NLI自然推理, 已有的语料是句子, 不是太适配;
 
 # 四、对比
 ## 4.1 相似度比较
@@ -103,6 +113,11 @@ near-synonym, 中文反义词/近义词工具包.
  - [https://github.com/liuhuanyong/SentenceSimilarity](https://github.com/liuhuanyong/SentenceSimilarity)
  - [https://github.com/yongzhuo/Macropodus](https://github.com/yongzhuo/Macropodus)
  - [https://github.com/chatopera/Synonyms](https://github.com/chatopera/Synonyms)
+
+# 六、日历
+## 2024.04.07, qwen-7b-chat模型构建28w+词典的近义词/反义词表, 即ci_atmnonym_synonym.json;
+## 2024.03.14, 初始化near-synonym, v0.0.3版本;
+
 
 # Reference
 For citing this work, you can refer to the present GitHub project. For example, with BibTeX:
