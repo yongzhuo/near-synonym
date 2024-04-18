@@ -5,12 +5,17 @@
 # @function: tools of near-synonym
 
 
-from collections import defaultdict
-import os, sys, re, json
-import unicodedata, re
+import logging as logger
+import unicodedata
 import smart_open
-import logging
+import traceback
+import json
+import sys
+import os
+import re
 
+path_sys = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+sys.path.append(path_sys)
 import numpy as np
 
 
@@ -74,6 +79,35 @@ def load_word2vec_from_format(path, limit=None, binary=False, dtype=np.float32):
                 vectors[vdx] = weights
             fr.close()
     return vectors, index2word, word2index
+def download_model_from_huggface_with_url(repo_id="Macropodus/near_synonym_model", hf_endpoint="https://hf-mirror.com"):
+    """   下载模型等数据文件, 从huggface下载, 可指定repo_id/url   """
+    os.environ["HF_ENDPOINT"] = hf_endpoint or os.environ.get("HF_ENDPOINT", hf_endpoint)
+    from huggingface_hub import snapshot_download
+    logger.basicConfig(level=logger.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
+    os.environ["PATH_NEAR_SYNONYM_MODEL"] = os.environ.get("PATH_NEAR_SYNONYM_MODEL",
+                                                           os.path.join(path_sys, "near_synonym"))
+    local_dir = os.path.join(os.environ["PATH_NEAR_SYNONYM_MODEL"], repo_id.split("/")[-1])
+    logger.info("PATH_NEAR_SYNONYM_MODEL IS " + str(os.environ["PATH_NEAR_SYNONYM_MODEL"]))
+    logger.info("HF_ENDPOINT IS " + str(os.environ["HF_ENDPOINT"]))
+    logger.info("download near_synonym_model from huggface start, please wait a few minute!")
+    cache_dir = local_dir + "/cache"
+    snapshot_download(cache_dir=cache_dir,
+                      local_dir=local_dir,
+                      repo_id=repo_id,
+                      local_dir_use_symlinks=False,  # 不转为缓存乱码的形式
+                      resume_download=False,
+                      force_download=True,
+                      # allow_patterns=[],
+                      # ignore_patterns=[],
+                      )
+    logger.info("download near_synonym_model from huggface, end!")
+def download_model_from_huggface(repo_id="Macropodus/near_synonym_model"):
+    """   下载模型等数据文件, 从huggface   """
+    try:
+        download_model_from_huggface_with_url(hf_endpoint="https://hf-mirror.com", repo_id=repo_id)
+    except Exception as e:
+        logger.info(traceback.print_exc())
+        download_model_from_huggface_with_url(hf_endpoint="https://huggingface.co/models", repo_id=repo_id)
 def any2str(text, encoding="utf-8", errors="strict"):
     """   强制转string   """
     if isinstance(text, str):
@@ -609,8 +643,9 @@ if __name__ == '__main__':
     myz = 0
 
     path = "./w2v_model_wiki_char.vec"
-
     vectors, index2word, word2index = load_word2vec_from_format(
         path, limit=None, binary=True)
     print(word2index)
+
+    # download_model_from_huggface()
 

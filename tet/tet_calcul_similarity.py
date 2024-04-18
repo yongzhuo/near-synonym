@@ -10,6 +10,10 @@ import logging
 
 import near_synonym
 
+w1 = "桂林"
+w2 = "柳州"
+score = near_synonym.sim(w1, w2)
+print(w1, w2, score)
 
 words_syn = [
     ("轿车", "汽车"),

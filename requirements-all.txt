@@ -1,3 +1,4 @@
+huggingface_hub>=0.20.3
 onnxruntime-gpu==1.12.1
 smart_open>=4.2.0
 annoy>=1.17.3

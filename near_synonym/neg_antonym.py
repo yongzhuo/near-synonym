@@ -15,7 +15,7 @@ sys.path.append(path_sys)
 # from tqdm import tqdm
 import numpy as np
 
-from near_synonym.tools import load_word2vec_from_format, load_json
+from near_synonym.tools import download_model_from_huggface, load_json
 from near_synonym.nli_ernie_lm import QwenErnieSim
 from near_synonym.nli_ernie_tc import NliErnieSim
 from near_synonym.tools import sigmoid, softmax
@@ -25,32 +25,18 @@ from near_synonym.search import AnnoySearch
 
 class NearSynonym:
     def __init__(self):
-        self.path_onnx_qwen = os.path.join(path_sys, "near_synonym/data/ernie_sim_onnx/ernie_sim_model.onnx")
-        self.path_onnx_ernie = os.path.join(path_sys, "near_synonym/data/ernie_nli_onnx/ernie_nli_model.onnx")
-        self.path_ci_atmnonym_synonym = os.path.join(path_sys, "near_synonym/data/ci_atmnonym_synonym.json")
-        path_near_synonym_model = os.path.join(path_sys, "near_synonym/near_synonym_model")
-        path_near_synonym_data = os.path.join(path_sys, "near_synonym/data")
-        if os.path.exists(path_near_synonym_model):
-            path_model_dir = path_near_synonym_model
-        else:  # mini-data
-            path_model_dir = path_near_synonym_data
-        if os.path.exists(self.path_onnx_qwen):
-            self.path_model_onnx = os.path.join(path_sys, "near_synonym/data/ernie_sim_onnx/ernie_sim_model.onnx")
-            self.path_tokenizer = os.path.join(path_sys, "near_synonym/data/ernie_sim_onnx/ernie_sim_vocab.txt")
-        elif os.path.exists(self.path_onnx_ernie):
-            self.path_model_onnx = os.path.join(path_sys, "near_synonym/data/ernie_nli_onnx/ernie_nli_model.onnx")
-            self.path_tokenizer = os.path.join(path_sys, "near_synonym/data/ernie_nli_onnx/ernie_nli_vocab.txt")
-        else:  # mini-data
-            self.path_model_onnx = os.path.join(path_sys, "near_synonym/data/roformer_unilm_small.onnx")
-            self.path_tokenizer = os.path.join(path_sys, "near_synonym/data/roformer_vocab.txt")
-        self.path_ann = os.path.join(path_model_dir, "word2vec.ann")
-        self.path_w2i = os.path.join(path_model_dir, "word2vec.w2i")
-        # self.path_i2w = os.path.join(path_sys, "near_synonym/near_synonym_model/word2vec.i2w")
+        self.path_near_synonym_model_dir = os.path.join(path_sys, "near_synonym/near_synonym_model")
+        self.path_ci_atmnonym_synonym = os.path.join(self.path_near_synonym_model_dir, "ci_atmnonym_synonym.json")
+        self.path_model_onnx = os.path.join(self.path_near_synonym_model_dir, "roformer_unilm_small.onnx")
+        self.path_tokenizer = os.path.join(self.path_near_synonym_model_dir, "roformer_vocab.txt")
+        self.path_ann = os.path.join(self.path_near_synonym_model_dir, "word2vec.ann")
+        self.path_w2i = os.path.join(self.path_near_synonym_model_dir, "word2vec.w2i")
         self.use_ernie = True
         self.n_cluster = 32
         self.dim_ann = 100
         self.maxlen = 512
         self.threads = 1
+        self.download_hf_model()
         self.load_deep_model()
         self.load_search()
         self.load_ci()
@@ -135,7 +121,7 @@ class NearSynonym:
         """   获取反义词   """
         ###  0. 首先搜索预置词典
         if use_pre_dict:  # 使用预置的近义词/反义词词典
-            word_syn_list = self.search_ci_support(word, kind="atmnonym")
+            word_syn_list = self.search_ci_support(word, kind="antonym")
         else:
             word_syn_list = []
         if word_syn_list:
@@ -231,15 +217,15 @@ class NearSynonym:
         score_ann = vector_1.dot(vector_2) / (np.linalg.norm(vector_1) * np.linalg.norm(vector_2))
         return score_ann
 
-    def search_ci_support(self, word, kind="atmnonym"):
+    def search_ci_support(self, word, kind="antonym"):
         """   获取反义词/同义词   """
-        if kind == "atmnonym":
+        if kind == "antonym":
             word_kind = self.atmnonym_dict.get(word, [])
         else:
             word_kind = self.synonym_dict.get(word, [])
         return word_kind
 
-    def search_word_vector(self, word):
+    def search_word_vector(self, word, kind="word"):
         """   获取词向量   """
         ann_idx = 0
         ###  1. 获取索引和词向量, 未登录词unk获取每个字向量的平均
@@ -253,23 +239,97 @@ class NearSynonym:
             vector = np.array(vector)
         else:  # unk word will average char-vector
             vector = []
-            for char in word:
-                ann_idx = self.ann_w2i.get(char, 0)
+            if kind == "word":
+                token_list = list(self.cut_bidi(word=word))
+            else:
+                token_list = list(word)
+            for token in token_list:
+                ann_idx = self.ann_w2i.get(token, 0)
                 vector_i = self.ann_model.get_vector(ann_idx)
+                vector_i = np.array(vector_i) * len(token) / (len(word) + 1)
                 vector.append(vector_i)
-            vector = np.array(vector).mean(axis=0)
+            # vector = np.array(vector).mean(axis=0)
+            vector = np.array(vector).sum(axis=0)
         return ann_idx, vector
+
+    def cut_forward(self, word, len_max=7):
+        """   正向最大切词   """
+        len_sen = len(word)
+        i = 0
+        while i < len_sen:  # while判断条件
+            flag = False  # flag标志位,确定有没有在字典里边的单字词或多字词
+            for j in range(min(len_sen + 1, i + len_max), -i, -1):  # 遍历从当前字到句子末尾可能成词的部分, 从最后i+len_max算起
+                word_maybe = word[i:j]  # 正向可能成词的语
+                if word_maybe in self.ann_w2i:  # 是否在字典里边
+                    i = j  # 成词前标志i向后移动
+                    flag = True  # flag标志位变化
+                    yield word_maybe
+                    break  # 成词则跳出循环
+            if not flag:  # 未选中后单个字的情况
+                yield word[i]
+                i += 1
+
+    def cut_reverse(self, word, len_max=7):
+        """   反向最大切词   """
+        len_sen = len(word)
+        i = len_sen
+        res = []
+        while i > 0:  # while判断条件
+            flag = False  # flag标志位,确定有没有在字典里边的单字词或多字词
+            for j in range(max(0, i - len_max), i):  # 遍历从句子末尾向前可能成词的部分, 从最后i-len_max算起
+                word_maybe = word[j:i]  # 正向可能成词的语
+                if word_maybe in self.ann_w2i:  # 是否在字典里边
+                    i = j  # 成词前标志i向后移动
+                    flag = True  # flag标志位变化
+                    res.append(word_maybe)
+                    # yield word_maybe
+                    break  # 成词则跳出循环
+            if not flag:  # 未选中后单个字的情况
+                i -= 1
+                # yield word[i]
+                res.append(word[i])
+        for i in range(len(res) - 1, -1, -1):
+            yield res[i]
+        # return res
+
+    def cut_bidi(self, word, len_max=7):
+        """   最大双向词典切词, 即最大正向切词与最大反向切词合并, 选择词数小的那个返回   """
+        res_forward = self.cut_forward(word=word, len_max=len_max)
+        res_reverse = self.cut_reverse(word=word, len_max=len_max)
+        res_forward_list = list(res_forward)
+        res_reverse_list = list(res_reverse)
+        len_res_forward = len(res_forward_list)
+        len_res_reverse = len(res_reverse_list)
+        if len_res_forward >= len_res_reverse:
+            for rrl in res_reverse_list:
+                yield rrl
+        else:
+            for rfl in res_forward_list:
+                yield rfl
+
+    def download_hf_model(self):
+        """  从hf国内镜像加载数据   """
+        if os.path.exists(self.path_near_synonym_model_dir) \
+            and os.path.exists(self.path_ci_atmnonym_synonym) \
+            and os.path.exists(self.path_model_onnx) \
+            and os.path.exists(self.path_tokenizer) \
+            and os.path.exists(self.path_ann) \
+            and os.path.exists(self.path_w2i):
+            pass
+        else:
+            # dowload model from hf
+            download_model_from_huggface()
 
     def load_deep_model(self):
         """  下载深度学习模型   """
-        if os.path.exists(self.path_onnx_qwen):
+        if "qwen" in self.path_model_onnx:
             self.deep_model = QwenErnieSim(  # LLM-synonym-atmnonym相似度, 带一点否定判断
                 path_model_onnx=self.path_model_onnx,
                 path_tokenizer=self.path_tokenizer,
                 threads=self.threads,
                 maxlen=self.maxlen,
             )
-        elif os.path.exists(self.path_onnx_ernie):
+        elif "ernie" in self.path_model_onnx:
             self.deep_model = NliErnieSim(  # NIL相似度, 带一点否定判断
                 path_model_onnx=self.path_model_onnx,
                 path_tokenizer=self.path_tokenizer,
@@ -353,4 +413,3 @@ if __name__ == '__main__':
                     print(r)
         except Exception as e:
             print(traceback.print_exc())
-

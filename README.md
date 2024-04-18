@@ -16,6 +16,12 @@
 ```
 
 ## 1.3 模型文件
+### 版本v0.1.0
+ - github项目源码自带模型文件只有1w+词向量, 完整模型文件在near_synonym/near_synonym_model, 
+ - pip下载pypi包里边没有数据和模型(只有代码), 第一次加载使用huggface_hub下载, 大约为420M;
+ - 完整的词向量详见[huggingface](https://huggingface.co/)网站的[Macropodus/near_synonym_model](https://huggingface.co/Macropodus/near_synonym_model), 
+
+### 版本v0.0.3
  - github项目源码自带模型文件只有1w+词向量, 完整模型文件在near_synonym/near_synonym_model, 
  - pip下载的软件包里边只有5w+词向量, 放在data目录下;
  - 完整的词向量详见[huggingface](https://huggingface.co/)网站的[Macropodus/near_synonym_model](https://huggingface.co/Macropodus/near_synonym_model), 
@@ -25,7 +31,7 @@
 
 # 二、使用方式
 
-## 2.1 快速使用, 反义词, 近义词
+## 2.1 快速使用, 反义词, 近义词, 相似度
 ```python3
 import near_synonym
 
@@ -41,12 +47,19 @@ print(word_synonyms)
 [('讨厌', 0.6857), ('厌恶', 0.5406), ('憎恶', 0.485), ('不喜欢', 0.4079), ('冷漠', 0.4051)]
 近义词:
 [('喜爱', 0.8813), ('爱好', 0.8193), ('感兴趣', 0.7399), ('赞赏', 0.6849), ('倾向', 0.6137)]
-请输入word:
+"""
+
+w1 = "桂林"
+w2 = "柳州"
+score = near_synonym.sim(w1, w2)
+print(w1, w2, score)
+"""
+桂林 柳州 0.8947
 """
 ```
 
 
-## 2.2 详细使用
+## 2.2 详细使用, 反义词, 相似度
 ```python3
 import near_synonym
 
@@ -55,6 +68,12 @@ word_antonyms = near_synonym.antonyms(word, topk=8, annk=256, annk_cpu=128, batc
                      rate_ann=0.4, rate_sim=0.4, rate_len=0.2, rounded=4, is_debug=False)
 print("反义词:")
 print(word_antonyms)
+
+word1, word2 = "桂林", "柳州"
+score = near_synonym.sim(word1, word2, rate_ann=4, rate_sim=4, rate_len=2, 
+                                rounded=4, is_debug=False)
+print(score)
+
 # 当前版本速度很慢, 召回数量annk_cpu/annk可以调小
 ```
 
@@ -76,14 +95,16 @@ near-synonym, 中文反义词/近义词工具包.
 1. 推理加速, 训练小的NLI模型, 替换掉笨重且不太合适的roformer-sim-ft;【20240320已完成ERNIE-SIM，但转为ONNX为340M太大, 考虑浅层网络, 转第四点4.】
 2. 使用大模型构建更多的NLI语料;
 3. 使用大模型直接生成近义词, 同义词表, 用于前置索引+训练相似度;【20240407已完成】
-4. 近义词反义词识别考虑使用经典NLP分类模型, text_cnn/text-rcnn, 基于字向量;
+4. 近义词反义词识别考虑使用经典NLP分类模型, text_cnn/text-rcnn, 基于字向量;【do-ing, 仿transformers写config/tokenizer/model, 方便余预训练模型集成】
 5. word2vec召回不太行, 考虑直接使用大模型qwen1.5-0.5b生成;
 ```
 
 ## 3.3 其他实验
-### 3.3.1
+```
+choice, 如何处理数据/模型文件, 1.huggingface_hub("√")  2.gzip compress whitin 100M in pypi("×");
 fail, 使用情感识别, 取得不同情感下的词语(失败, 例如可爱/漂亮同为积极情感);
 fail, 使用NLI自然推理, 已有的语料是句子, 不是太适配;
+```
 
 # 四、对比
 ## 4.1 相似度比较
@@ -114,10 +135,13 @@ fail, 使用NLI自然推理, 已有的语料是句子, 不是太适配;
  - [https://github.com/yongzhuo/Macropodus](https://github.com/yongzhuo/Macropodus)
  - [https://github.com/chatopera/Synonyms](https://github.com/chatopera/Synonyms)
 
-# 六、日历
-## 2024.04.07, qwen-7b-chat模型构建28w+词典的近义词/反义词表, 即ci_atmnonym_synonym.json;
-## 2024.03.14, 初始化near-synonym, v0.0.3版本;
-
+# 六、日志
+```
+2024.04.14, 修改词向量计算方式(句子级别), 使得句向量的相似度/近义词/反义词更准确一些(依旧很不准, 待改进); 
+2024.04.13, 使用huggface_hub下载数据, 即near_synonym_model目录, 在[Macropodus/near_synonym_model](https://huggingface.co/Macropodus/near_synonym_model);
+2024.04.07, qwen-7b-chat模型构建28w+词典的近义词/反义词表, 即ci_atmnonym_synonym.json, v0.1.0版本;
+2024.03.14, 初始化near-synonym, v0.0.3版本;
+```
 
 # Reference
 For citing this work, you can refer to the present GitHub project. For example, with BibTeX:
