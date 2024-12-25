@@ -16,6 +16,13 @@
 ```
 
 ## 1.3 模型文件
+### 版本v0.3.0
+ - 新增一种生成反义词/近义词的算法, 构建提示词prompt, 基于BERT-MLM等继续训练, 类似beam_search方法, 生成反义词/近义词;
+   ```
+   prompt: "xx"的反义词是"[MASK][MASK]"。
+   ```
+ - 模型权重在[Macropodus/mlm_antonym_model](https://huggingface.co/Macropodus/mlm_antonym_model), 国内镜像[Macropodus/mlm_antonym_model](https://hf-mirror.com/Macropodus/mlm_antonym_model)
+
 ### 版本v0.1.0
  - github项目源码自带模型文件只有1w+词向量, 完整模型文件在near_synonym/near_synonym_model, 
  - pip下载pypi包里边没有数据和模型(只有代码), 第一次加载使用huggface_hub下载, 大约为420M;
@@ -28,10 +35,9 @@
  - 或完整的词向量详见百度网盘分享链接[https://pan.baidu.com/s/1lDSCtpr0r2hKrGrK8ZLlFQ](https://pan.baidu.com/s/1lDSCtpr0r2hKrGrK8ZLlFQ), 密码: ff0y
 
 
-
 # 二、使用方式
 
-## 2.1 快速使用, 反义词, 近义词, 相似度
+## 2.1 快速使用方法一, 反义词, 近义词, 相似度
 ```python3
 import near_synonym
 
@@ -59,7 +65,7 @@ print(w1, w2, score)
 ```
 
 
-## 2.2 详细使用, 反义词, 相似度
+## 2.2 详细使用方法一, 反义词, 相似度
 ```python3
 import near_synonym
 
@@ -78,16 +84,48 @@ print(score)
 ```
 
 
+## 2.3 使用方法二, 基于继续训练 + promt的bert-mlm形式
+```python3
+import traceback
+import os
+os.environ["FLAG_MLM_ANTONYM"] = "1"  # 必须先指定
+
+from near_synonym import mlm_synonyms, mlm_antonyms
+
+
+word = "喜欢"
+word_antonyms = mlm_antonyms(word)
+word_synonyms = mlm_synonyms(word)
+print("反义词:")
+print(word_antonyms)
+print("近义词:")
+print(word_synonyms)
+
+"""
+反义词:
+[('厌恶', 0.77), ('讨厌', 0.72), ('憎恶', 0.56), ('反恶', 0.49), ('忌恶', 0.48), ('反厌', 0.46), ('厌烦', 0.46), ('反感', 0.45)]
+近义词:
+[('喜好', 0.75), ('喜爱', 0.64), ('爱好', 0.54), ('倾爱', 0.5), ('爱爱', 0.49), ('喜慕', 0.49), ('向好', 0.48), ('倾向', 0.48)]
+"""
+```
+
 # 三、技术原理
 ## 3.1 技术详情
 ```
 near-synonym, 中文反义词/近义词工具包.
-流程: Word2vec -> ANN -> NLI -> Length
+流程一(neg_antonym): Word2vec -> ANN -> NLI -> Length
 
 # Word2vec, 词向量, 使用skip-ngram的词向量;
 # ANN, 近邻搜索, 使用annoy检索召回;
 # NLI, 自然语言推断, 使用Roformer-sim的v2版本, 区分反义词/近义词;
 # Length, 惩罚项, 词语的文本长度惩罚;
+
+流程二(mlm_antonym): 构建提示词prompt等重新训练BERT类模型("引号等着重标注, 带句号, 不训练效果很差) -> BERT-MLM(第一个char取topk, 然后从左往右依次beam_search) 
+# 构建prompt:
+  - "xxx"的反义词是"[MASK][MASK][MASK]"。
+  - "xxx"的近义词是"[MASK][MASK][MASK]"。
+# 训练MLM
+# 一个char一个char地预测, 同beam_search
 ```
 
 ## 3.2 TODO
@@ -101,6 +139,7 @@ near-synonym, 中文反义词/近义词工具包.
 
 ## 3.3 其他实验
 ```
+choice, prompt + bert-mlm;
 choice, 如何处理数据/模型文件, 1.huggingface_hub("√")  2.gzip compress whitin 100M in pypi("×");
 fail, 使用情感识别, 取得不同情感下的词语(失败, 例如可爱/漂亮同为积极情感);
 fail, 使用NLI自然推理, 已有的语料是句子, 不是太适配;
@@ -137,6 +176,7 @@ fail, 使用NLI自然推理, 已有的语料是句子, 不是太适配;
 
 # 六、日志
 ```
+2024.10.06, 完成prompt + bert-mlm形式生成反义词/近义词; 
 2024.04.14, 修改词向量计算方式(句子级别), 使得句向量的相似度/近义词/反义词更准确一些(依旧很不准, 待改进); 
 2024.04.13, 使用huggface_hub下载数据, 即near_synonym_model目录, 在[Macropodus/near_synonym_model](https://huggingface.co/Macropodus/near_synonym_model);
 2024.04.07, qwen-7b-chat模型构建28w+词典的近义词/反义词表, 即ci_atmnonym_synonym.json, v0.1.0版本;
