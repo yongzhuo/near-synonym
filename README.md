@@ -1,4 +1,11 @@
-# near-synonym
+# [near-synonym](https://github.com/yongzhuo/near-synonym) 
+[![PyPI](https://img.shields.io/pypi/v/near-synonym)](https://pypi.org/project/near-synonym/)
+[![Build Status](https://travis-ci.com/yongzhuo/near-synonym.svg?branch=master)](https://travis-ci.com/yongzhuo/near-synonym)
+[![PyPI_downloads](https://img.shields.io/pypi/dm/near-synonym)](https://pypi.org/project/near-synonym/)
+[![Stars](https://img.shields.io/github/stars/yongzhuo/near-synonym?style=social)](https://github.com/yongzhuo/near-synonym/stargazers)
+[![Forks](https://img.shields.io/github/forks/yongzhuo/near-synonym.svg?style=social)](https://github.com/yongzhuo/near-synonym/network/members)
+[![Join the chat at https://gitter.im/yongzhuo/near-synonym](https://badges.gitter.im/yongzhuo/near-synonym.svg)](https://gitter.im/yongzhuo/near-synonym?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
+
 >>> near-synonym, 中文反义词/近义词/同义词(antonym/synonym)工具包.
 
 # 一、安装
